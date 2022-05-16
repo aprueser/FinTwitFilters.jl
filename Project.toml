@@ -3,6 +3,14 @@ uuid = "61a0aadc-d113-4210-8e79-db8dd1be9f11"
 authors = ["Andrew Prueser <aprueser@gmail.com> and contributors"]
 version = "0.1.0"
 
+[deps]
+DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+DataFramesMeta = "1313f7d8-7da2-5740-9ea0-a2ca25f37964"
+Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
+Parameters = "d96e819e-fc66-5662-9728-84c9c7592b0a"
+Temporal = "a110ec8f-48c8-5d59-8f7e-f91bc4cc0c3d"
+TimeSeries = "9e3dc215-6440-5c97-bce1-76c03772f85e"
+
 [compat]
 julia = "1.7"
 
