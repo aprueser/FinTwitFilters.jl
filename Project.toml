@@ -4,12 +4,16 @@ authors = ["Andrew Prueser <aprueser@gmail.com> and contributors"]
 version = "0.1.0"
 
 [deps]
+Actors = "18269d71-cc38-4e02-b8c8-1db30113a6dd"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 DataFramesMeta = "1313f7d8-7da2-5740-9ea0-a2ca25f37964"
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
+Indicators = "70c4c096-89a6-5ec6-8236-da8aa3bd86fd"
+MarketLists = "1791e4d3-c481-4fa1-ad32-b71e965e4dfb"
 Parameters = "d96e819e-fc66-5662-9728-84c9c7592b0a"
+Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
+TDAmeritradeAPI = "c324db79-5286-4ae5-81de-7966373ec7a4"
 Temporal = "a110ec8f-48c8-5d59-8f7e-f91bc4cc0c3d"
-TimeSeries = "9e3dc215-6440-5c97-bce1-76c03772f85e"
 
 [compat]
 julia = "1.7"
