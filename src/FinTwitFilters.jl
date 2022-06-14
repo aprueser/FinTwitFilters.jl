@@ -12,20 +12,26 @@ module FinTwitFilters
     minVolFilter       = 400000::Int64
     minDollarVolFilter = 20000000::Int64
 
+    ## ETFs to track
+
+
     ## External Libraries
     using Actors, .Threads, Dates, Printf, Parameters, Temporal, DataFrames, DataFramesMeta, Indicators, MarketLists, TDAmeritradeAPI
 
     import Actors: spawn
 
     ## Exported Functions
-    export DictSrv, dictsrv,
-           getExchangeUniverse, fetchSymbolData,
+    export getExchangeUniverse, fetchSymbolData,
            Stock, getLastClose, getFirstCandleDate, getLastCandleDate, getLastDollarVolume, get52WkLow, get52WkHigh,
-           addSMA!, addEMA!, addROC!, addCandleType!, addWickPlayFlag!
+           addSMA!, addEMA!, addROC!, addGaps!, addCandleType!, addWickPlayFlag!,
+           toWeeklyOHLC, toMonthlyOHLC, toQuarterlyOHLC, toYearlyOHLC
 
     ## Include Package implementation
     include("Stock.jl")
     include("FetchData.jl")
-    include("WorkQueue.jl")
+
+    ## Package Stock List
+    stockList = Dict{String, FinTwitFilters.Stock}()
+    loadingStatus = Dict{String, Int64}()
 
 end

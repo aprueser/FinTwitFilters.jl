@@ -1,4 +1,14 @@
 @with_kw mutable struct Stock
+    ## Status:
+    ##  INIT           - Created from Exchange Member Lookup
+    ##  OHLC_RAW       - OHLCV Data has been fetched from API, but is still RAW JSON
+    ##  OHLC_PARSED    - OHLCV Data has been parsed into a Temporal.TS timeseries
+    ##  OHLC_COLLAPSED - OHLCV Data has been collapsed into weekly, monthly, quarterly, and yearly OHLCV timeseries
+    ##  OHLC_AUGMENTED - OHLCV Data has been augmented with FinTwit favorite Indicators
+    ##  OHLC_FAILED       - API Lookup for OHLCV Data failed  
+    ##  OHLC_PARSE_FAILED - JSON Parse for OHLCV Data failed
+    status::String = "INIT"
+
     ## Symbol Descriptors
     ticker::String     
     company::String 
@@ -12,10 +22,63 @@
     industry::String      = ""
     country::String       = ""
 
+    ## Symbol Fundamental Data
+    fundamentals::Union{DataFrames.DataFrame, Dict{Symbol, Union{Int16, String, Vector{UInt8}}},  Missing} = missing
+
     ## Symbol OHLC Data
-    fundamentals::Union{DataFrames.DataFrame, Missing}                                   = missing
-    ohlc::Union{Temporal.TS, Dict{Symbol, Union{Int16, String, Vector{UInt8}}}, Missing} = missing
-    options::Union{DataFrames.DataFrame, Missing}                                        = missing
+    ohlc::Union{Temporal.TS, Dict{Symbol, Union{Int16, String, Vector{UInt8}}}, Missing, DataFrame} = missing
+
+    wkohlc::Union{Temporal.TS, Dict{Symbol, Union{Int16, String, Vector{UInt8}}}, Missing}  = missing
+    mthohlc::Union{Temporal.TS, Dict{Symbol, Union{Int16, String, Vector{UInt8}}}, Missing} = missing
+    qtrohlc::Union{Temporal.TS, Dict{Symbol, Union{Int16, String, Vector{UInt8}}}, Missing} = missing
+    yrohlc::Union{Temporal.TS, Dict{Symbol, Union{Int16, String, Vector{UInt8}}}, Missing}  = missing
+
+    ## Symbol Options Chain
+    options::Union{DataFrames.DataFrame, Missing}                                           = missing
+end
+
+## Convert to weekly OHLC data
+function toWeeklyOHLC(ohlc::Union{Temporal.TS, Missing})
+    wk = hcat(collapse(ohlc[:Open], eow, fun=first),
+        collapse(ohlc[:High], eow, fun=maximum), 
+        collapse(ohlc[:Low], eow, fun=minimum), 
+        collapse(ohlc[:Close], eow, fun=last),
+        collapse(ohlc[:Volume], eow, fun=sum));
+
+    return wk;
+end
+
+## Convert to monthly OHLC data
+function toMonthlyOHLC(ohlc::Union{Temporal.TS, Missing})
+    mon = hcat(collapse(ohlc[:Open], eom, fun=first),
+        collapse(ohlc[:High], eom, fun=maximum), 
+        collapse(ohlc[:Low], eom, fun=minimum), 
+        collapse(ohlc[:Close], eom, fun=last),
+        collapse(ohlc[:Volume], eom, fun=sum));
+
+    return mon;
+end
+
+## Convert to quarterly OHLC data
+function toQuarterlyOHLC(ohlc::Union{Temporal.TS, Missing})
+    qtr = hcat(collapse(ohlc[:Open], eoq, fun=first),
+        collapse(ohlc[:High], eoq, fun=maximum), 
+        collapse(ohlc[:Low], eoq, fun=minimum), 
+        collapse(ohlc[:Close], eoq, fun=last),
+        collapse(ohlc[:Volume], eoq, fun=sum));
+
+    return qtr;
+end
+
+## Convert to yearly OHLC data
+function toYearlyOHLC(ohlc::Union{Temporal.TS, Missing})
+    yr = hcat(collapse(ohlc[:Open], eoy, fun=first),
+        collapse(ohlc[:High], eoy, fun=maximum), 
+        collapse(ohlc[:Low], eoy, fun=minimum), 
+        collapse(ohlc[:Close], eoy, fun=last),
+        collapse(ohlc[:Volume], eoy, fun=sum));
+
+    return yr;
 end
 
 ## Add fields to the OHLC data that allow easier computation of common FinTwit Technical Analysis
@@ -89,6 +152,21 @@ function addWickPlayFlag!(ohlc::Union{Temporal.TS, Missing})
             (ohlc[:High].values[:,1] .< lagTS(ohlc[:Close], 1, pad=true, padval=NaN).values[:,1])                                             ## Current High below last close
         )
     end
+end
+
+function addPowerOfThree!(ohlc::Union{Temporal.TS, Missing})
+    ## Add Power of 3 Flag
+    if ismissing(ohlc)
+        return;
+    elseif ohlc isa Temporal.TS
+        ohlc[:SMA10EMA21SMA50PctDiff] = 100 .- ((minimum(ohlc[[:CloseSMA10, :CloseEMA21, :CloseSMA50]].values, dims=2) ./ maximum(ohlc[[:CloseSMA10, :CloseEMA21, :CloseSMA50]].values, dims=2)) .* 100.00)
+    end
+end
+
+function addGaps!(ohlc::Union{Temporal.TS, Missing}, pctChangeInVol::Int64 = 200, gapSizePct::Int64 = 10)
+    ## Add a flag to identify gap up, and gap down days
+    ohlc[:gapUp]   = ohlc[[:VolumePctChangeDay]].values .> pctChangeInVol .&& ohlc[[:ClosePctChangeDay]].values .> gapSizePct
+    ohlc[:gapDown] = ohlc[[:VolumePctChangeDay]].values .> pctChangeInVol .&& ohlc[[:ClosePctChangeDay]].values .< (-1 * gapSizePct)
 end
 
 ## Get get values from the OHLC data
