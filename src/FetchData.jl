@@ -64,6 +64,20 @@ function actorFetchFundamental(ticker, apiKey)
 
 		send(whereis(:parseFun), ticker)
 	end
+
+        loadingStatus["fetchFundamentals"] = loadingStatus["fetchFundamentals"] - 1
+end
+
+function actorFetchOptionChain(ticker, apiKey)
+	opChain = TDAmeritradeAPI.api_getOptionChainRaw(ticker, apiKey)
+
+        if opChain[:code] == 200
+                stockList[ticker].options = opChain
+
+                send(whereis(:parseOp), ticker)
+        end
+
+        loadingStatus["fetchOptionChain"] = loadingStatus["fetchOptionChain"] - 1
 end
 
 ## Define the Actor behavior for parsing the OHLCV JSON data
@@ -96,6 +110,12 @@ end
 function actorParseFundamental(ticker)
 	if stockList[ticker].fundamentals[:body] isa String && length(stockList[ticker].fundamentals[:body]) > 10
 		stockList[ticker].fundamentals = TDAmeritradeAPI.parseRawInstrumentToDataFrame(stockList[ticker].fundamentals, "fundamental");
+	end
+end
+
+function actorParseOptionChain(ticker)
+	if stockList[ticker].options[:body] isa String && length(stockList[ticker].options[:body]) > 10
+		stockList[ticker].options = TDAmeritradeAPI.parseRawOptionChainToDataFrame(stockList[ticker].options, ticker);
 	end
 end
 
@@ -192,22 +212,24 @@ function fetchSymbolData(apiKey::apiKeys; sampleData::Bool = false, sampleSize::
     end
 
     println("Total Symbols: ", length(dat))
-    loadingStatus["fetch"] = loadingStatus["parse"] = loadingStatus["collect"] = loadingStatus["augment"] = length(dat)
+    loadingStatus["fetch"] = loadingStatus["fetchFundamentals"] = loadingStatus["fetchOptionChain"] = loadingStatus["parse"] = loadingStatus["collect"] = loadingStatus["augment"] = length(dat)
 
     ## Spawn the Actors
     fetcher   = spawn(actorFetchPriceHistory, thrd = 2)
     parser    = spawn(actorParsePriceHistory, thrd = 3)
     parseFun  = spawn(actorParseFundamental, thrd = 3)
+    parseOp   = spawn(actorParseOptionChain, thrd = 3)
     collector = spawn(actorCollectPriceHistory, thrd = 4)
     augmenter = spawn(actorAugmentPriceHistory, thrd = 3)
 
     register(:fetch, fetcher)
     register(:parse, parser)
     register(:parseFun, parseFun)
+    register(:parseOp, parseOp)
     register(:collect, collector)
     register(:augment, augmenter)
     
-    for s in keys(dat)
+    for s in ProgressBar(keys(dat))
         send(whereis(:fetch), s, apiKey);
     end
 

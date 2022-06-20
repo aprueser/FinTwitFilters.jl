@@ -34,7 +34,7 @@
     yrohlc::Union{Temporal.TS, Dict{Symbol, Union{Int16, String, Vector{UInt8}}}, Missing}  = missing
 
     ## Symbol Options Chain
-    options::Union{DataFrames.DataFrame, Missing}                                           = missing
+    options::Union{DataFrames.DataFrame, Dict{Symbol, Union{Int16, String, Vector{UInt8}}}, Missing} = missing
 end
 
 ## Convert to weekly OHLC data

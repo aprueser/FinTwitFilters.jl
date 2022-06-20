@@ -16,7 +16,7 @@ module FinTwitFilters
 
 
     ## External Libraries
-    using Actors, .Threads, Dates, Printf, Parameters, Temporal, DataFrames, DataFramesMeta, Indicators, MarketLists, TDAmeritradeAPI
+    using Actors, .Threads, Dates, Printf, ProgressBars, Parameters, Temporal, DataFrames, DataFramesMeta, Indicators, MarketLists, TDAmeritradeAPI
 
     import Actors: spawn
 
