@@ -85,8 +85,12 @@ end
 function addSMA!(ohlc::Union{Temporal.TS, Missing}, field::Symbol, len::Int64, colName::Symbol)
     if ismissing(ohlc)
         return;
-    elseif ohlc isa Temporal.TS
+    elseif ohlc isa Temporal.TS && size(ohlc, 1) > len
         ohlc[colName] = sma(ohlc[field].values[:,1], n = (size(ohlc)[1] > len ? len : size(ohlc)[1] - 1))
+
+        return;
+    elseif ohlc isa Temporal.TS && size(ohlc, 1) <= len
+	ohlc[colName] = fill(NaN, size(ohlc, 1))
 
         return;
     end
@@ -95,8 +99,12 @@ end
 function addEMA!(ohlc::Union{Temporal.TS, Missing}, field::Symbol, len::Int64, colName::Symbol)
     if ismissing(ohlc)
         return;
-    elseif ohlc isa Temporal.TS
+    elseif ohlc isa Temporal.TS && size(ohlc, 1) > len 
         ohlc[colName] = ema(ohlc[field].values[:,1], n = (size(ohlc)[1] > len ? len : size(ohlc)[1] - 1))
+
+        return;
+    elseif ohlc isa Temporal.TS && size(ohlc, 1) <= len
+	ohlc[colName] = fill(NaN, size(ohlc, 1))
 
         return;
     end
@@ -105,8 +113,12 @@ end
 function addROC!(ohlc::Union{Temporal.TS, Missing}, field::Symbol, len::Int64, colName::Symbol)
     if ismissing(ohlc)
         return;
-    elseif ohlc isa Temporal.TS
+    elseif ohlc isa Temporal.TS && size(ohlc, 1) > len
         ohlc[colName] = roc(ohlc[field].values[:,1], n = (size(ohlc)[1] > len ? len : size(ohlc)[1] - 1))
+
+        return;
+    elseif ohlc isa Temporal.TS && size(ohlc, 1) <= len
+	ohlc[colName] = fill(NaN, size(ohlc, 1))
 
         return;
     end
@@ -119,12 +131,16 @@ function addCandleType!(ohlc::Union{Temporal.TS, Missing})
     ## 1 = Inside Day, 2 = Trending Day, 3, Outside Day
     if ismissing(ohlc)
         return;
-    elseif ohlc isa Temporal.TS
+    elseif ohlc isa Temporal.TS && size(ohlc, 1) > 1
         ohlc[:candleType] = map((i, o) -> i == false && o == false ? 2 : i == true ? 1 : 3, 
             ohlc[:High].values[:,1] .< lagTS(ohlc[:High], 1, pad=true, padval=NaN).values[:,1] .&& ohlc[:Low].values[:,1] .> lagTS(ohlc[:Low], 1, pad=true, padval=NaN).values[:,1], 
             ohlc[:High].values[:,1] .> lagTS(ohlc[:High], 1, pad=true, padval=NaN).values[:,1] .&& ohlc[:Low].values[:,1] .< lagTS(ohlc[:Low], 1, pad=true, padval=NaN).values[:,1])
     
         return;
+    elseif ohlc isa Temporal.TS && size(ohlc, 1) <= 1
+	ohlc[:candleType] = fill(NaN, size(ohlc, 1))
+
+	return;
     end
 end
 
@@ -134,7 +150,7 @@ function addWickPlayFlag!(ohlc::Union{Temporal.TS, Missing})
     ## Top Wick after an Up Day
     if ismissing(ohlc)
         return;
-    elseif ohlc isa Temporal.TS
+    elseif ohlc isa Temporal.TS && size(ohlc, 1) > 1
         ohlc[:inTopWick] = map(w -> w == true ? 1 : 0,
             (lagTS(ohlc[:Close], 1, pad=true, padval=NaN).values[:,1] .> lagTS(ohlc[:Open], 1, pad=true, padval=NaN).values[:,1]) .&&  ## Last candle was green
             (lagTS(ohlc[:Close], 1, pad=true, padval=NaN).values[:,1] .< lagTS(ohlc[:High], 1, pad=true, padval=NaN).values[:,1]) .&&  ## Last candle closed below high, leaving wick
@@ -151,6 +167,9 @@ function addWickPlayFlag!(ohlc::Union{Temporal.TS, Missing})
             (ohlc[:Open].values[:,1] .> lagTS(ohlc[:Low], 1, pad=true, padval=NaN).values[:,1]) .&&                                           ## Current Open above last low
             (ohlc[:High].values[:,1] .< lagTS(ohlc[:Close], 1, pad=true, padval=NaN).values[:,1])                                             ## Current High below last close
         )
+    elseif ohlc isa Temporal.TS && size(ohlc, 1) <= 1
+	ohlc[:inTopWick] = fill(0.0, size(ohlc, 1)) 
+	ohlc[:inBottomWick] = fill(0.0, size(ohlc, 1)) 
     end
 end
 
@@ -165,8 +184,10 @@ end
 
 function addGaps!(ohlc::Union{Temporal.TS, Missing}, pctChangeInVol::Int64 = 200, gapSizePct::Int64 = 10)
     ## Add a flag to identify gap up, and gap down days
-    ohlc[:gapUp]   = ohlc[[:VolumePctChangeDay]].values .> pctChangeInVol .&& ohlc[[:ClosePctChangeDay]].values .> gapSizePct
-    ohlc[:gapDown] = ohlc[[:VolumePctChangeDay]].values .> pctChangeInVol .&& ohlc[[:ClosePctChangeDay]].values .< (-1 * gapSizePct)
+    if size(ohlc[:VolumePctChangeDay], 2) > 0 && size(ohlc[:ClosePctChangeDay], 2) > 0
+    	ohlc[:gapUp]   = ohlc[[:VolumePctChangeDay]].values .> pctChangeInVol .&& ohlc[[:ClosePctChangeDay]].values .> gapSizePct
+    	ohlc[:gapDown] = ohlc[[:VolumePctChangeDay]].values .> pctChangeInVol .&& ohlc[[:ClosePctChangeDay]].values .< (-1 * gapSizePct)
+    end
 end
 
 ## Get get values from the OHLC data
@@ -220,7 +241,7 @@ function get52WkLow(ohlc::Union{Temporal.TS, Missing})
         return nothing;
     elseif ohlc isa Temporal.TS
         ## If there is not a full year's worth of candles, get the max for the data available
-        if size(ohlc)[1] < tradingDaysInYear
+        if size(ohlc, 1) < tradingDaysInYear
             minimum(ohlc[[:Open, :Close, :High]])
         else
             minimum(ohlc[end - tradingDaysInYear:end, [:Open, :Close, :High]])

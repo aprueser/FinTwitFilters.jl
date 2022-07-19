@@ -82,7 +82,7 @@ end
 
 ## Define the Actor behavior for parsing the OHLCV JSON data
 function actorParsePriceHistory(ticker) 
-    ##println("Parsing OHLC data for ", ticker.ticker, " on ", threadid());
+    ##println("Parsing OHLC data for ", stockList[ticker].ticker, " on ", threadid());
     if stockList[ticker].ohlc[:body] isa String && length(stockList[ticker].ohlc[:body]) > 10
         stockList[ticker].ohlc = TDAmeritradeAPI.parseRawPriceHistoryToTemporalTS(stockList[ticker].ohlc, ticker);
         stockList[ticker].status = "OHLC_PARSED";
@@ -121,21 +121,22 @@ end
 
 ## Define the Actor behavior for collecting the daily OHLCV data into weekly, monthly, quarterly, and yearly OHLCVs
 function actorCollectPriceHistory(ticker)
+    ##println("Collecting OHLCV data into weekly, monthly, quarterly, and Yearly charts for symbol: ", ticker)
     firstCandle = getFirstCandleDate(stockList[ticker].ohlc)
 
-    if round(Dates.now() - firstCandle, Day).value > (2 * tradingDaysInWeek)
+    if round(Dates.now() - firstCandle, Day).value > (1 + (2 * tradingDaysInWeek))
         stockList[ticker].wkohlc  = toWeeklyOHLC(stockList[ticker].ohlc);
     end
     
-    if round(Dates.now() - firstCandle, Day).value > (tradingDaysInWeek + tradingDaysInMonth)
+    if round(Dates.now() - firstCandle, Day).value > (1 + (2 * tradingDaysInMonth))
         stockList[ticker].mthohlc = toMonthlyOHLC(stockList[ticker].ohlc);
     end
     
-    if round(Dates.now() - firstCandle, Day).value > (tradingDaysInMonth + tradingDaysInQtr)
+    if round(Dates.now() - firstCandle, Day).value > (1 + (2 * tradingDaysInQtr))
         stockList[ticker].qtrohlc = toQuarterlyOHLC(stockList[ticker].ohlc);
     end
     
-    if round(Dates.now() - firstCandle, Day).value > (tradingDaysInQtr + tradingDaysInYear)
+    if round(Dates.now() - firstCandle, Day).value > ( (2 * tradingDaysInQtr) + tradingDaysInYear)
         stockList[ticker].yrohlc  = toYearlyOHLC(stockList[ticker].ohlc);
     end
 
@@ -199,14 +200,17 @@ end
 ## 3. Enrich the timeseries data 
 ##
 ## Do all of this with Actors passing off the work to eachother on independant threads
-function fetchSymbolData(apiKey::apiKeys; sampleData::Bool = false, sampleSize::Int64 = 25)
+function fetchSymbolData(apiKey::apiKeys; sampleData::Bool = false, sampleSize::Int64 = 25, ticker::Union{Missing, String} = missing)
 
-    if sampleData == true
+    if sampleData == true && ismissing(ticker)
         dat = Dict{String, Stock}(rand(stockList, sampleSize))
 
         for s in values(dat)
             s.status = "SAMPLED"
         end
+    elseif sampleData == true && !ismissing(ticker)
+	dat = Dict{String, Stock}() 
+        dat[ticker] = stockList[ticker]
     else
         dat = stockList
     end
